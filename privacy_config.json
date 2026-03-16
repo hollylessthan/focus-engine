@@ -1,0 +1,28 @@
+{
+  "_comment": "Focus Engine privacy exclusion rules. Edit to control what is captured by Screenpipe.",
+  "excluded_apps": [
+    "1Password",
+    "Keychain Access",
+    "Finder",
+    "System Preferences",
+    "System Settings"
+  ],
+  "excluded_window_title_patterns": [
+    "Private",
+    "Incognito",
+    "1Password",
+    "password",
+    "Password"
+  ],
+  "redact_urls_matching": [
+    "bank",
+    "paypal",
+    "health",
+    "medical",
+    "password",
+    "signin",
+    "login",
+    "auth"
+  ],
+  "version": 1
+}
