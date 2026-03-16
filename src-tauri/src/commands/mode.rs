@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::AppState;
+
 /// The user's current operating mode — determines which incoming signals are interruptions.
 ///
 /// Work:     Discord/iMessage → queued. VS Code → expected (high-focus context).
@@ -26,22 +28,20 @@ impl std::fmt::Display for WorkLifeMode {
     }
 }
 
-/// Get the current Work/Life mode.
-///
-/// Stub: reads from in-memory default. Full implementation reads from AppState + SQLite.
+/// Get the current Work/Life mode from AppState.
 #[tauri::command]
-pub fn get_mode() -> Result<WorkLifeMode, String> {
-    Ok(WorkLifeMode::default())
+pub fn get_mode(state: tauri::State<'_, AppState>) -> Result<WorkLifeMode, String> {
+    let mode = state.mode.lock().map_err(|e| e.to_string())?;
+    Ok(*mode)
 }
 
-/// Set the Work/Life mode.
-///
-/// Stub: no-op. Full implementation updates AppState + persists to SQLite `app_state` table.
+/// Set the Work/Life mode in AppState.
+/// TODO (Milestone 3): persist to SQLite `app_state` table.
 /// The MCP negotiator reads from AppState on every intercept, so this takes effect immediately.
 #[tauri::command]
-pub fn set_mode(mode: WorkLifeMode) -> Result<(), String> {
-    // TODO: update tauri::State<AppState> and persist to DB
-    let _ = mode;
+pub fn set_mode(mode: WorkLifeMode, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut current = state.mode.lock().map_err(|e| e.to_string())?;
+    *current = mode;
     Ok(())
 }
 

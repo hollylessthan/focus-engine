@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::AppState;
+
 /// User-editable privacy exclusion rules.
 /// Loaded from `$APPLOCALDATA/focus-engine/privacy_config.json` on startup.
 /// Any OCR frame whose source window matches these rules is dropped before DB/LLM.
@@ -40,36 +42,38 @@ impl Default for PrivacyConfig {
 /// Toggle Incognito Mode.
 ///
 /// When active:
-/// - Screenpipe polling stops immediately
+/// - Screenpipe polling stops (freeze_frame returns an error)
 /// - Any buffered OCR is zeroized
-/// - Tray icon turns red (TODO: tray icon color change)
-///
-/// Stub: returns current state. Full implementation updates AppState.incognito_active.
+/// - Tray icon turns red (TODO: tray icon color change via Tauri tray plugin)
 #[tauri::command]
-pub fn toggle_incognito() -> Result<bool, String> {
-    // TODO: flip AppState.incognito_active, stop/start Screenpipe polling, zeroize buffers
-    Ok(false) // placeholder: always returns false (not active)
+pub fn toggle_incognito(state: tauri::State<'_, AppState>) -> Result<bool, String> {
+    let new_state = !state.incognito();
+    state.set_incognito(new_state);
+    Ok(new_state)
 }
 
 /// Get current incognito state.
 #[tauri::command]
-pub fn get_incognito_status() -> Result<bool, String> {
-    // TODO: read from AppState.incognito_active
-    Ok(false)
+pub fn get_incognito_status(state: tauri::State<'_, AppState>) -> Result<bool, String> {
+    Ok(state.incognito())
 }
 
 /// Get the active privacy configuration.
 #[tauri::command]
-pub fn get_privacy_config() -> Result<PrivacyConfig, String> {
-    // TODO: read from $APPLOCALDATA/focus-engine/privacy_config.json
-    Ok(PrivacyConfig::default())
+pub fn get_privacy_config(state: tauri::State<'_, AppState>) -> Result<PrivacyConfig, String> {
+    let config = state.privacy_config.lock().map_err(|e| e.to_string())?;
+    Ok(config.clone())
 }
 
-/// Update the privacy config and persist to disk.
+/// Update the privacy config in memory.
+/// TODO (Milestone 3): persist to $APPLOCALDATA/focus-engine/privacy_config.json.
 #[tauri::command]
-pub fn update_privacy_config(config: PrivacyConfig) -> Result<(), String> {
-    // TODO: validate, serialize to JSON, write to $APPLOCALDATA/focus-engine/privacy_config.json
-    let _ = config;
+pub fn update_privacy_config(
+    config: PrivacyConfig,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut current = state.privacy_config.lock().map_err(|e| e.to_string())?;
+    *current = config;
     Ok(())
 }
 

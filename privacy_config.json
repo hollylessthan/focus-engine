@@ -5,7 +5,14 @@
     "Keychain Access",
     "Finder",
     "System Preferences",
-    "System Settings"
+    "System Settings",
+    "Dock",
+    "Control Center",
+    "SystemUIServer",
+    "Spotlight",
+    "TextInputMenuAgent",
+    "focus-engine",
+    "Claude"
   ],
   "excluded_window_title_patterns": [
     "Private",
