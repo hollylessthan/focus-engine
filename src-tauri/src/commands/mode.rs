@@ -35,13 +35,16 @@ pub fn get_mode(state: tauri::State<'_, AppState>) -> Result<WorkLifeMode, Strin
     Ok(*mode)
 }
 
-/// Set the Work/Life mode in AppState.
-/// TODO (Milestone 3): persist to SQLite `app_state` table.
+/// Set the Work/Life mode in AppState and persist it to SQLite.
 /// The MCP negotiator reads from AppState on every intercept, so this takes effect immediately.
 #[tauri::command]
 pub fn set_mode(mode: WorkLifeMode, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let mut current = state.mode.lock().map_err(|e| e.to_string())?;
     *current = mode;
+    drop(current);
+    if let Some(db) = state.db.get() {
+        db.set_mode(mode)?;
+    }
     Ok(())
 }
 

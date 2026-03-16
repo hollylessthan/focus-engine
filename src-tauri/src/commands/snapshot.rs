@@ -91,23 +91,28 @@ pub async fn freeze_frame(state: tauri::State<'_, AppState>) -> Result<ContextSn
     let active_intent = infer_intent(&frames);
     let next_immediate_action = infer_next_action(&frames);
 
-    Ok(ContextSnapshot {
+    let snapshot = ContextSnapshot {
         id: Uuid::new_v4().to_string(),
         timestamp: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|e| e.to_string())?
             .as_secs() as i64,
         active_intent,
-        open_windows: vec![], // populated in Milestone 3 via DB
+        open_windows: vec![],
         cursor_position: (0, 0),
         visual_context_ocr: cleaned_ocr,
         next_immediate_action,
         cognitive_load_score,
-    })
+    };
+
+    if let Some(db) = state.db.get() {
+        db.save_snapshot(&snapshot).map_err(|e| e.to_string())?;
+    }
+
+    Ok(snapshot)
 }
 
-/// Returns all saved snapshots from the local DB.
-/// Stub: returns empty list until DB layer is implemented (Milestone 3).
+/// Returns up to 50 most recent snapshots from the local DB, newest first.
 #[tauri::command]
 pub async fn list_snapshots(
     state: tauri::State<'_, AppState>,
@@ -115,7 +120,10 @@ pub async fn list_snapshots(
     if state.incognito() {
         return Ok(vec![]);
     }
-    Ok(vec![])
+    match state.db.get() {
+        Some(db) => db.list_snapshots(),
+        None => Ok(vec![]),
+    }
 }
 
 /// Heuristic cognitive load score — replaced by LLM inference in Milestone 4.

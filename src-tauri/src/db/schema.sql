@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS snapshots (
     open_windows_json    TEXT NOT NULL
 );
 
+-- Persists app-level key/value state (e.g. work/life mode) across restarts.
+CREATE TABLE IF NOT EXISTS app_state (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS interruptions (
     id         TEXT PRIMARY KEY,
     source     TEXT NOT NULL,  -- 'slack' | 'jira' | 'email'
