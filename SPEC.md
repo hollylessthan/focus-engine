@@ -334,3 +334,20 @@ For deeper extraction (all open tabs, not just the active one), we query the Scr
 - Populates `ContextSnapshot.browser_tabs`
 
 URLs matching `privacy_config.json`'s `redact_urls_matching` patterns are replaced with `[REDACTED]` before any storage or LLM processing.
+
+---
+
+## 7. Milestones
+
+| # | Name | Status | Description |
+|---|---|---|---|
+| 1 | Hello World | ✅ Done | Tauri 2.0 scaffold, React UI, IPC bridge, capabilities, icons |
+| 2 | Screenpipe Integration | ✅ Done | Live OCR frames, privacy filters, app priority, VS Code/browser parsers |
+| 3 | SQLite Persistence | ✅ Done | Snapshots and Work/Life mode survive restarts |
+| 4 | Local LLM Inference | ✅ Done | `ai_config.json`, smart OCR heuristics, `--features local-llm` GGUF support |
+| 5 | MCP Interceptor | 🔲 Next | iMessage + Discord + Browser notification intercept via local MCP |
+| 6 | Focus Shield | 🔲 | Global hotkey shield activates DND + queues interruptions via negotiator.rs |
+| 7 | Restoration Protocol | 🔲 | Progressive re-entry: display intent/breadcrumb, restore window Z-order |
+| 8 | Tray App + Hotkeys | 🔲 | System tray icon, ⌘⇧F freeze, ⌘⇧I incognito global hotkeys wired to OS |
+| 9 | Privacy Config UI | 🔲 | In-app editor for privacy_config.json exclusion rules |
+| 10 | Open Source Polish | 🔲 | README, install script, model download guide, CI/CD |

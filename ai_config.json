@@ -1,0 +1,7 @@
+{
+  "_comment": "Focus Engine AI config. Set ollama_model to enable LLM inference. Run: brew install ollama && ollama serve && ollama pull llama3.2:3b",
+  "ollama_model": "llama3.2:3b",
+  "ollama_url": "http://127.0.0.1:11434",
+  "max_tokens": 256,
+  "temperature": 0.15
+}

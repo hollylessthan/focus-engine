@@ -9,6 +9,7 @@ use std::sync::{
     Mutex, OnceLock,
 };
 
+use ai::{config::AiConfig, engine::LocalEngine};
 use commands::mode::WorkLifeMode;
 use commands::privacy::PrivacyConfig;
 use db::store::Store;
@@ -24,6 +25,11 @@ pub struct AppState {
     pub mode: Mutex<WorkLifeMode>,
     /// SQLite store — initialized in setup(), available to all commands thereafter.
     pub db: OnceLock<Store>,
+    /// AI config loaded from ai_config.json — controls model path and parameters.
+    pub ai_config: Mutex<AiConfig>,
+    /// Local LLM engine — present when ollama_model is configured.
+    /// Stateless (no model in memory) — each call hits Ollama's localhost API.
+    pub ai_engine: OnceLock<LocalEngine>,
 }
 
 impl AppState {
@@ -43,6 +49,8 @@ impl Default for AppState {
             privacy_config: Mutex::new(PrivacyConfig::default()),
             mode: Mutex::new(WorkLifeMode::Work),
             db: OnceLock::new(),
+            ai_config: Mutex::new(AiConfig::default()),
+            ai_engine: OnceLock::new(),
         }
     }
 }
@@ -64,6 +72,23 @@ pub fn run() {
                 *state.mode.lock().unwrap() = mode;
             }
             state.db.set(store).ok();
+
+            // Load AI config and optionally initialize the local LLM engine.
+            let ai_config_path = data_dir.join("ai_config.json");
+            // Write default config on first launch so users know what to edit.
+            if !ai_config_path.exists() {
+                let default_json = serde_json::to_string_pretty(&AiConfig::default())
+                    .unwrap_or_default();
+                let _ = std::fs::write(&ai_config_path, default_json);
+            }
+            let ai_config = AiConfig::load(&ai_config_path);
+            *state.ai_config.lock().unwrap() = ai_config.clone();
+
+            if ai_config.is_enabled() {
+                state.ai_engine.set(LocalEngine::new(ai_config.clone())).ok();
+                eprintln!("[focus-engine] Ollama LLM enabled: {}", ai_config.ollama_model);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

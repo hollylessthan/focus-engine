@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use crate::ai::engine::heuristic_analysis;
 use crate::screenpipe::{
     browser,
     client::{OcrFrame, ScreenpipeClient},
@@ -84,12 +85,33 @@ pub async fn freeze_frame(state: tauri::State<'_, AppState>) -> Result<ContextSn
 
     let ocr_text = frames.iter().map(|f| f.text.as_str()).collect::<Vec<_>>().join("\n");
     let cleaned_ocr = clean_ocr(&ocr_text);
-    // Score only the 5 most recent frames (~1 min of activity) to avoid
-    // inflating complexity from stale historical app switches.
+
+    // Primary app name for heuristic / LLM context
+    let primary_app = select_primary_frame(&frames)
+        .map(|f| f.app_name.as_str())
+        .unwrap_or("Unknown");
+
+    // Use LLM engine if configured, otherwise fall back to heuristics.
+    let analysis = if let Some(engine) = state.ai_engine.get() {
+        engine.analyze(&cleaned_ocr, primary_app).await
+    } else {
+        heuristic_analysis(&cleaned_ocr, primary_app)
+    };
+
+    // Heuristic load score still used alongside LLM complexity for the progress bar.
+    // Score only the 5 most recent frames (~1 min of activity).
     let recent = &frames[..frames.len().min(5)];
-    let cognitive_load_score = compute_load_score(recent);
-    let active_intent = infer_intent(&frames);
-    let next_immediate_action = infer_next_action(&frames);
+    let heuristic_score = compute_load_score(recent);
+    // Blend: if LLM gave a score, weight it 70/30 with the structural heuristic.
+    let cognitive_load_score = if state.ai_engine.get().is_some() {
+        analysis.complexity * 0.7 + heuristic_score * 0.3
+    } else {
+        heuristic_score
+    };
+
+    // Window title-aware intent overrides LLM for VS Code / browser (more precise).
+    let active_intent = infer_intent_with_analysis(&frames, &analysis.intent);
+    let next_immediate_action = infer_next_action_with_analysis(&frames, &analysis.next_action);
 
     let snapshot = ContextSnapshot {
         id: Uuid::new_v4().to_string(),
@@ -191,6 +213,28 @@ fn select_primary_frame(frames: &[OcrFrame]) -> Option<&OcrFrame> {
     }
     // Fall back to focused, then most recent
     frames.iter().find(|f| f.focused).or_else(|| frames.first())
+}
+
+/// Intent with LLM fallback: use precise window-title parsing where possible,
+/// otherwise use the LLM/heuristic result.
+fn infer_intent_with_analysis(frames: &[OcrFrame], llm_intent: &str) -> String {
+    let parsed = infer_intent(frames);
+    // If window-title parsing produced a generic "Working in X", prefer LLM.
+    if parsed.starts_with("Working in") && !llm_intent.is_empty() {
+        llm_intent.to_string()
+    } else {
+        parsed
+    }
+}
+
+/// Next action with LLM fallback.
+fn infer_next_action_with_analysis(frames: &[OcrFrame], llm_action: &str) -> String {
+    let parsed = infer_next_action(frames);
+    if parsed.starts_with("Return to") && !llm_action.is_empty() {
+        llm_action.to_string()
+    } else {
+        parsed
+    }
 }
 
 /// Infer user intent from the highest-priority app in recent frames.
